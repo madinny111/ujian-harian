@@ -30,7 +30,7 @@ body::before{content:'';position:fixed;inset:0;background-image:repeating-linear
 
 /* SCREENS */
 .screen{display:none;position:relative;z-index:1}
-.screen.active{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:16px}
+.screen.active{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:16px}
 
 /* CARD */
 .card{background:var(--cream);border-radius:var(--radius);box-shadow:var(--shadow),0 0 0 3px var(--gold);padding:var(--pad-card-h) var(--pad-card);width:100%;max-width:480px;position:relative;overflow:hidden}
@@ -86,7 +86,7 @@ input[data-nopm]{
 
 /* ═══ GURU DASHBOARD ═══ */
 #screen-guru{padding:0;align-items:stretch}
-.guru-layout{display:flex;min-height:100vh;width:100%}
+.guru-layout{display:flex;min-height:100vh;min-height:100dvh;width:100%}
 
 /* Sidebar Desktop */
 .sidebar{width:220px;flex-shrink:0;background:var(--green-dark);display:flex;flex-direction:column;border-right:1px solid rgba(255,255,255,.08)}
@@ -152,7 +152,13 @@ tr:last-child td{border-bottom:none}
 .essay-kunci-input:focus{border-color:#3498db;box-shadow:0 0 0 2px rgba(52,152,219,.15)}
 .essay-note{font-size:10px;color:#2980b9;margin-top:3px;font-weight:600}
 
-/* SETTINGS */
+/* EXAM STATUS BAR per ujian */
+.exam-status-bar{display:flex;align-items:center;justify-content:space-between;background:#fff;border-radius:10px;padding:10px 14px;margin-bottom:12px;box-shadow:0 1px 6px rgba(0,0,0,.06);gap:8px;flex-wrap:wrap}
+.exam-status-info{font-size:var(--fs-xs);color:var(--text-mid);font-weight:600}
+.exam-status-info b{color:var(--green-dark)}
+.btn-start-exam{padding:7px 14px;font-size:var(--fs-xs);border-radius:8px;font-weight:700;border:none;cursor:pointer;font-family:'Cairo',sans-serif;white-space:nowrap;transition:all .2s}
+.btn-start-exam.start{background:linear-gradient(135deg,var(--green-mid),var(--green-dark));color:#fff}
+.btn-start-exam.stop{background:var(--red);color:#fff}
 .setting-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--cream-dark);gap:12px}
 .setting-row:last-child{border-bottom:none}
 .setting-info{flex:1;min-width:0}
@@ -167,7 +173,7 @@ tr:last-child td{border-bottom:none}
 
 /* ═══ EXAM SCREEN ═══ */
 #screen-exam{padding:0;align-items:stretch;background:var(--green-dark)}
-.exam-layout{display:flex;flex-direction:column;height:100vh;width:100%;overflow:hidden}
+.exam-layout{display:flex;flex-direction:column;height:100vh;height:100dvh;width:100%;overflow:hidden}
 .exam-topbar{background:var(--green-dark);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid rgba(232,184,75,.3);flex-shrink:0}
 .et-left{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
 .et-logo{font-size:20px;flex-shrink:0}
@@ -418,6 +424,11 @@ tr:last-child td{border-bottom:none}
           <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
             <select id="exam-selector" onchange="loadExam(this.value)" autocomplete="off"
               style="padding:8px 12px;border-radius:8px;border:2px solid var(--cream-dark);font-family:'Cairo',sans-serif;font-size:var(--fs-sm);font-weight:600;width:100%"></select>
+            <!-- Status & tombol mulai per ujian -->
+            <div class="exam-status-bar" id="per-exam-status-bar">
+              <div class="exam-status-info" id="per-exam-status-text">⏸ Ujian ini <b>belum aktif</b></div>
+              <button class="btn-start-exam start" id="btn-per-exam-toggle" onclick="toggleExamById()">▶ Mulai Ujian Ini</button>
+            </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn btn-outline btn-sm" onclick="showNewExamModal()">+ Ujian Baru</button>
               <input type="file" id="fileSoalDocx" accept=".docx" style="display:none" onchange="prosesDocx(this)">
@@ -678,10 +689,12 @@ function backToRole(){
 
 // ── SANTRI LOGIN ──
 function populateSantriExams(){
-  const cfg=getStore(KEY_CFG,{}),activeExamId=cfg.activeExamId,exams=getStore(KEY_EXAMS,[])
+  const cfg=getStore(KEY_CFG,{}),exams=getStore(KEY_EXAMS,[])
+  // Support both old activeExamId and new activeExamIds
+  let activeIds=cfg.activeExamIds||(cfg.activeExamId?[cfg.activeExamId]:[])
   const sel=document.getElementById('santri-exam')
   sel.innerHTML='<option value="">-- Pilih Ujian --</option>'
-  const available=activeExamId?exams.filter(e=>e.id===activeExamId):exams
+  const available=activeIds.length?exams.filter(e=>activeIds.includes(e.id)):exams
   available.forEach(e=>{const o=document.createElement('option');o.value=e.id;o.textContent=e.nama+(e.kelas&&e.kelas!=='Semua Kelas'?' ('+e.kelas+')':'');sel.appendChild(o)})
 }
 
@@ -691,7 +704,8 @@ function santriLogin(){
   const examId=document.getElementById('santri-exam').value
   if(!nama||!kelas||!examId)return alertEl('home-alert','Lengkapi semua data login.')
   const cfg=getStore(KEY_CFG,{})
-  if(cfg.activeExamId&&examId!==cfg.activeExamId)return alertEl('home-alert','Ujian yang dipilih tidak sedang aktif.')
+  let activeIds=cfg.activeExamIds||(cfg.activeExamId?[cfg.activeExamId]:[])
+  if(activeIds.length&&!activeIds.includes(examId))return alertEl('home-alert','Ujian yang dipilih tidak sedang aktif.')
   const exam=getStore(KEY_EXAMS,[]).find(e=>e.id===examId)
   if(!exam||!exam.soal||exam.soal.length===0)return alertEl('home-alert','Soal belum tersedia.')
   document.getElementById('mny-loader').style.display='flex'
@@ -732,7 +746,7 @@ function guruLogin(){
 function logout(){clearInterval(dashInterval);showScreen('screen-home');backToRole()}
 
 function loadGuruDashboard(){
-  loadConfig();renderExamSelector();renderSoalPanel();updateStats();renderLiveTable();updateExamStatusBadge()
+  loadConfig();renderExamSelector();renderSoalPanel();updateStats();renderLiveTable();updateExamStatusBadge();updatePerExamStatusBar()
   dashInterval=setInterval(()=>{
     fetch(GAS_URL,{method:'POST',body:JSON.stringify({action:'getGuruData'})}).then(r=>r.json()).then(data=>{
       setStore(KEY_PESERTA,data.peserta||[]);setStore(KEY_HASIL,data.hasil||[])
@@ -762,17 +776,19 @@ function showGuruPanel(name){
 
 // ── STATS & TABLES ──
 function updateStats(){
-  const pArr=getStore(KEY_PESERTA,[]),hArr=getStore(KEY_HASIL,[]),actId=getStore(KEY_CFG,{}).activeExamId
-  document.getElementById('stat-peserta').textContent=pArr.filter(p=>p.examId===actId&&p.status==='aktif'&&!p.dq).length
+  const pArr=getStore(KEY_PESERTA,[]),hArr=getStore(KEY_HASIL,[]),cfg=getStore(KEY_CFG,{})
+  let activeIds=cfg.activeExamIds||(cfg.activeExamId?[cfg.activeExamId]:[])
+  document.getElementById('stat-peserta').textContent=pArr.filter(p=>(!activeIds.length||activeIds.includes(p.examId))&&p.status==='aktif'&&!p.dq).length
   document.getElementById('stat-selesai').textContent=hArr.length
   document.getElementById('stat-curang').textContent=pArr.filter(p=>p.cheatCount>0).length
   document.getElementById('stat-soal').textContent=getStore(KEY_EXAMS,[]).reduce((a,e)=>a+(e.soal?.length||0),0)
 }
 
 function renderLiveTable(){
-  const pArr=getStore(KEY_PESERTA,[]),actId=getStore(KEY_CFG,{}).activeExamId
+  const pArr=getStore(KEY_PESERTA,[]),cfg=getStore(KEY_CFG,{})
+  let activeIds=cfg.activeExamIds||(cfg.activeExamId?[cfg.activeExamId]:[])
   const tbody=document.getElementById('live-table')
-  const active=pArr.filter(p=>p.examId===actId||!actId)
+  const active=pArr.filter(p=>!activeIds.length||activeIds.includes(p.examId))
   if(!active.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px">Belum ada peserta aktif</td></tr>';return}
   tbody.innerHTML=active.map(p=>`<tr>
     <td><b>${p.nama}</b></td><td>${p.kelas}</td>
@@ -889,8 +905,8 @@ function renderExamSelector(){
   if(exams.length&&!currentExamId)loadExam(exams[0].id)
   else if(currentExamId)sel.value=currentExamId
 }
-function loadExam(id){currentExamId=id;renderSoalList()}
-function renderSoalPanel(){renderExamSelector();renderSoalList()}
+function loadExam(id){currentExamId=id;renderSoalList();updatePerExamStatusBar()}
+function renderSoalPanel(){renderExamSelector();renderSoalList();updatePerExamStatusBar()}
 
 function renderSoalList(){
   const exam=getStore(KEY_EXAMS,[]).find(e=>e.id===currentExamId)
@@ -1017,25 +1033,80 @@ function prosesDocx(input){
   reader.readAsArrayBuffer(input.files[0])
 }
 
-// ── PENGATURAN ──
+// ── TOGGLE EXAM (Global header – akhiri semua) ──
 function toggleExam(){
   let cfg=getStore(KEY_CFG,{})
-  if(cfg.activeExamId){if(!confirm('Akhiri ujian yang berjalan?'))return;cfg.activeExamId=null;showToast('Ujian diakhiri.')}
-  else{if(!currentExamId)return showToast('Pilih ujian di Kelola Soal.',true);cfg.activeExamId=currentExamId;showToast('Ujian dimulai!')}
-  setStore(KEY_CFG,cfg);gasSync('saveConfig',cfg);updateExamStatusBadge()
+  let activeIds=cfg.activeExamIds||(cfg.activeExamId?[cfg.activeExamId]:[])
+  if(activeIds.length){
+    if(!confirm('Akhiri SEMUA ujian yang sedang berjalan?'))return
+    cfg.activeExamIds=[];cfg.activeExamId=null
+    showToast('Semua ujian diakhiri.')
+  }else{
+    if(!currentExamId)return showToast('Pilih ujian di Kelola Soal.',true)
+    cfg.activeExamIds=[currentExamId];cfg.activeExamId=currentExamId
+    showToast('Ujian dimulai!')
+  }
+  setStore(KEY_CFG,cfg);gasSync('saveConfig',cfg);updateExamStatusBadge();updatePerExamStatusBar()
 }
+
+// ── TOGGLE EXAM per ujian (dari panel soal) ──
+function toggleExamById(){
+  if(!currentExamId)return showToast('Pilih ujian terlebih dahulu.',true)
+  let cfg=getStore(KEY_CFG,{})
+  let activeIds=cfg.activeExamIds||(cfg.activeExamId?[cfg.activeExamId]:[])
+  const isActive=activeIds.includes(currentExamId)
+  if(isActive){
+    activeIds=activeIds.filter(id=>id!==currentExamId)
+    showToast('Ujian diakhiri.')
+  }else{
+    activeIds.push(currentExamId)
+    showToast('Ujian dimulai!')
+  }
+  cfg.activeExamIds=activeIds
+  // Compat: simpan activeExamId sebagai yang pertama atau null
+  cfg.activeExamId=activeIds.length?activeIds[0]:null
+  setStore(KEY_CFG,cfg);gasSync('saveConfig',cfg)
+  updateExamStatusBadge();updatePerExamStatusBar()
+}
+
+function updatePerExamStatusBar(){
+  const cfg=getStore(KEY_CFG,{}),exams=getStore(KEY_EXAMS,[])
+  let activeIds=cfg.activeExamIds||(cfg.activeExamId?[cfg.activeExamId]:[])
+  const bar=document.getElementById('per-exam-status-bar')
+  const txt=document.getElementById('per-exam-status-text')
+  const btn=document.getElementById('btn-per-exam-toggle')
+  if(!bar||!txt||!btn)return
+  const exam=exams.find(e=>e.id===currentExamId)
+  if(!exam){txt.innerHTML='Pilih ujian untuk dikelola';btn.style.display='none';return}
+  btn.style.display=''
+  if(activeIds.includes(currentExamId)){
+    txt.innerHTML=`🟢 <b>${exam.nama}</b> sedang <b style="color:var(--green-mid)">AKTIF</b>`
+    btn.textContent='⏹ Akhiri Ujian Ini';btn.className='btn-start-exam stop'
+  }else{
+    txt.innerHTML=`⏸ <b>${exam.nama}</b> belum aktif`
+    btn.textContent='▶ Mulai Ujian Ini';btn.className='btn-start-exam start'
+  }
+}
+
 function updateExamStatusBadge(){
-  const actId=getStore(KEY_CFG,{}).activeExamId,exam=getStore(KEY_EXAMS,[]).find(e=>e.id===actId)
+  const cfg=getStore(KEY_CFG,{}),exams=getStore(KEY_EXAMS,[])
+  let activeIds=cfg.activeExamIds||(cfg.activeExamId?[cfg.activeExamId]:[])
   // Desktop
   const badge=document.getElementById('exam-status-badge'),btn=document.getElementById('btn-toggle-exam')
   // Mobile
   const badgeM=document.getElementById('exam-status-badge-m'),btnM=document.getElementById('btn-toggle-exam-m')
-  if(actId&&exam){
-    badge.className='badge badge-green';badge.textContent='● Aktif: '+exam.nama;btn.textContent='⏹ Akhiri';btn.style.background='var(--red)'
-    badgeM.className='badge badge-green';badgeM.textContent='● Aktif';btnM.textContent='⏹ Akhiri';btnM.style.background='var(--red)'
+  if(activeIds.length){
+    const names=activeIds.map(id=>{const e=exams.find(x=>x.id===id);return e?e.nama:''}).filter(Boolean)
+    const label=names.length===1?names[0]:names.length+' Ujian Aktif'
+    if(badge){badge.className='badge badge-green';badge.textContent='● Aktif: '+label}
+    if(btn){btn.textContent='⏹ Akhiri Semua';btn.style.background='var(--red)'}
+    if(badgeM){badgeM.className='badge badge-green';badgeM.textContent='● '+names.length+' Aktif'}
+    if(btnM){btnM.textContent='⏹ Akhiri';btnM.style.background='var(--red)'}
   }else{
-    badge.className='badge badge-gray';badge.textContent='● Tidak Aktif';btn.textContent='▶ Mulai Ujian';btn.style.background=''
-    badgeM.className='badge badge-gray';badgeM.textContent='● Tidak Aktif';btnM.textContent='▶ Mulai';btnM.style.background=''
+    if(badge){badge.className='badge badge-gray';badge.textContent='● Tidak Aktif'}
+    if(btn){btn.textContent='▶ Mulai Ujian';btn.style.background=''}
+    if(badgeM){badgeM.className='badge badge-gray';badgeM.textContent='● Tidak Aktif'}
+    if(btnM){btnM.textContent='▶ Mulai';btnM.style.background=''}
   }
 }
 function loadConfig(){
@@ -1048,9 +1119,11 @@ function loadConfig(){
 function saveConfig(){
   const g=id=>{const el=document.getElementById(id);return el?(el.type==='checkbox'?el.checked:el.value):null}
   const cfg=getStore(KEY_CFG,{})
+  const keepIds=cfg.activeExamIds||[];const keepId=cfg.activeExamId||null
   cfg.timerSoal=parseInt(g('cfg-timer-soal'))||60;cfg.timerTotal=parseInt(g('cfg-timer-total'))||60
   cfg.anticheat=g('cfg-anticheat');cfg.dq=g('cfg-dq');cfg.toleransi=parseInt(g('cfg-toleransi'))||1
   cfg.acak=g('cfg-acak');cfg.acakOpsi=g('cfg-acak-opsi')
+  cfg.activeExamIds=keepIds;cfg.activeExamId=keepId
   setStore(KEY_CFG,cfg);gasSync('saveConfig',cfg);showToast('Pengaturan disimpan.')
 }
 function setTimerMode(mode){
