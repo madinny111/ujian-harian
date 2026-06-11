@@ -478,8 +478,24 @@ tr:last-child td{border-bottom:none}
               <input type="number" id="cfg-timer-total" value="60" min="5" max="300" autocomplete="off" style="width:80px;padding:7px 10px" onchange="saveConfig()">
             </div>
             <div class="setting-row">
-              <div class="setting-info"><div class="setting-label">Anti-Curang</div><div class="setting-desc">Deteksi tab switching, copy-paste, dll</div></div>
-              <label class="toggle"><input type="checkbox" id="cfg-anticheat" checked onchange="saveConfig()"><span class="toggle-slider"></span></label>
+              <div class="setting-info"><div class="setting-label">🛡️ Anti-Curang: Pindah Tab / Jendela</div><div class="setting-desc">Deteksi saat santri berpindah tab atau minimize browser</div></div>
+              <label class="toggle"><input type="checkbox" id="cfg-ac-tab" checked onchange="saveConfig()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><div class="setting-label">🛡️ Anti-Curang: Copy & Paste</div><div class="setting-desc">Blokir salin, tempel, dan potong teks</div></div>
+              <label class="toggle"><input type="checkbox" id="cfg-ac-copy" checked onchange="saveConfig()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><div class="setting-label">🛡️ Anti-Curang: Klik Kanan</div><div class="setting-desc">Blokir menu klik kanan (konteks)</div></div>
+              <label class="toggle"><input type="checkbox" id="cfg-ac-rclick" checked onchange="saveConfig()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><div class="setting-label">🛡️ Anti-Curang: DevTools & Keyboard</div><div class="setting-desc">Blokir F12, Ctrl+Shift+I, Ctrl+U, Print Screen</div></div>
+              <label class="toggle"><input type="checkbox" id="cfg-ac-devtools" checked onchange="saveConfig()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><div class="setting-label">🛡️ Anti-Curang: Keluar Layar Penuh</div><div class="setting-desc">Deteksi saat keluar dari mode fullscreen</div></div>
+              <label class="toggle"><input type="checkbox" id="cfg-ac-fullscreen" checked onchange="saveConfig()"><span class="toggle-slider"></span></label>
             </div>
             <div class="setting-row">
               <div class="setting-info"><div class="setting-label">Hukuman DQ</div><div class="setting-desc">Langsung diskualifikasi saat curang</div></div>
@@ -690,11 +706,17 @@ function backToRole(){
 // ── SANTRI LOGIN ──
 function populateSantriExams(){
   const cfg=getStore(KEY_CFG,{}),exams=getStore(KEY_EXAMS,[])
-  // Support both old activeExamId and new activeExamIds
   let activeIds=cfg.activeExamIds||(cfg.activeExamId?[cfg.activeExamId]:[])
   const sel=document.getElementById('santri-exam')
   sel.innerHTML='<option value="">-- Pilih Ujian --</option>'
-  const available=activeIds.length?exams.filter(e=>activeIds.includes(e.id)):exams
+  // Jika tidak ada ujian aktif → dropdown tetap kosong, santri tidak bisa memilih
+  if(!activeIds.length){
+    const opt=document.createElement('option');opt.disabled=true;opt.textContent='Belum ada ujian yang dibuka';sel.appendChild(opt);return
+  }
+  const available=exams.filter(e=>activeIds.includes(e.id))
+  if(!available.length){
+    const opt=document.createElement('option');opt.disabled=true;opt.textContent='Belum ada ujian yang dibuka';sel.appendChild(opt);return
+  }
   available.forEach(e=>{const o=document.createElement('option');o.value=e.id;o.textContent=e.nama+(e.kelas&&e.kelas!=='Semua Kelas'?' ('+e.kelas+')':'');sel.appendChild(o)})
 }
 
@@ -1112,7 +1134,13 @@ function updateExamStatusBadge(){
 function loadConfig(){
   const cfg=getStore(KEY_CFG,{}),f=(id,v)=>{const el=document.getElementById(id);if(el){if(el.type==='checkbox')el.checked=!!v;else el.value=v||''}}
   f('cfg-timer-soal',cfg.timerSoal||60);f('cfg-timer-total',cfg.timerTotal||60)
-  f('cfg-anticheat',cfg.anticheat!==false);f('cfg-dq',cfg.dq!==false)
+  // Per-type anticheat (default true jika belum ada)
+  f('cfg-ac-tab',   cfg.acTab!==false)
+  f('cfg-ac-copy',  cfg.acCopy!==false)
+  f('cfg-ac-rclick',cfg.acRclick!==false)
+  f('cfg-ac-devtools',cfg.acDevtools!==false)
+  f('cfg-ac-fullscreen',cfg.acFullscreen!==false)
+  f('cfg-dq',cfg.dq!==false)
   f('cfg-toleransi',cfg.toleransi||1);f('cfg-acak',cfg.acak||false);f('cfg-acak-opsi',cfg.acakOpsi||false)
   setTimerMode(cfg.timerMode||'persoal')
 }
@@ -1121,7 +1149,15 @@ function saveConfig(){
   const cfg=getStore(KEY_CFG,{})
   const keepIds=cfg.activeExamIds||[];const keepId=cfg.activeExamId||null
   cfg.timerSoal=parseInt(g('cfg-timer-soal'))||60;cfg.timerTotal=parseInt(g('cfg-timer-total'))||60
-  cfg.anticheat=g('cfg-anticheat');cfg.dq=g('cfg-dq');cfg.toleransi=parseInt(g('cfg-toleransi'))||1
+  // Per-type anticheat
+  cfg.acTab=       g('cfg-ac-tab')!==null       ? g('cfg-ac-tab')       : cfg.acTab!==false
+  cfg.acCopy=      g('cfg-ac-copy')!==null      ? g('cfg-ac-copy')      : cfg.acCopy!==false
+  cfg.acRclick=    g('cfg-ac-rclick')!==null    ? g('cfg-ac-rclick')    : cfg.acRclick!==false
+  cfg.acDevtools=  g('cfg-ac-devtools')!==null  ? g('cfg-ac-devtools')  : cfg.acDevtools!==false
+  cfg.acFullscreen=g('cfg-ac-fullscreen')!==null? g('cfg-ac-fullscreen'): cfg.acFullscreen!==false
+  // anticheat global = true jika minimal satu aktif (backward compat)
+  cfg.anticheat=cfg.acTab||cfg.acCopy||cfg.acRclick||cfg.acDevtools||cfg.acFullscreen
+  cfg.dq=g('cfg-dq');cfg.toleransi=parseInt(g('cfg-toleransi'))||1
   cfg.acak=g('cfg-acak');cfg.acakOpsi=g('cfg-acak-opsi')
   cfg.activeExamIds=keepIds;cfg.activeExamId=keepId
   setStore(KEY_CFG,cfg);gasSync('saveConfig',cfg);showToast('Pengaturan disimpan.')
@@ -1222,7 +1258,13 @@ function startPerSoalTimer(){
 
 function submitUjian(auto=false){
   const kosongCount=examSoal.filter((_,i)=>jawaban[i]===undefined||jawaban[i]==='').length
-  if(!auto&&kosongCount>0){if(!confirm(`Masih ada ${kosongCount} soal kosong. Kumpulkan sekarang?`))return}
+  if(!auto&&kosongCount>0){
+    // Sementara lepas anticheat agar dialog confirm tidak picu pelanggaran
+    detachAntiCheat()
+    const lanjut=confirm(`Masih ada ${kosongCount} soal kosong. Kumpulkan sekarang?`)
+    // Pasang kembali anticheat jika batal
+    if(!lanjut){if(getStore(KEY_CFG,{}).anticheat)attachAntiCheat();return}
+  }
   clearAllTimers();detachAntiCheat();document.body.style.overflow=''
   let benar=0,salah=0,pilganTotal=0,pilganBenar=0
   const hasEssay=examSoal.some(s=>(s.tipe||'pilgan')==='essay')
@@ -1254,19 +1296,35 @@ function submitUjian(auto=false){
 let acHandlers={}
 function attachAntiCheat(){
   if(anticheatListenersAttached)return;anticheatListenersAttached=true
-  acHandlers.vischange=()=>{if(document.hidden)reportCheat('Berpindah tab/jendela')};document.addEventListener('visibilitychange',acHandlers.vischange)
-  acHandlers.blur=()=>reportCheat('Jendela kehilangan fokus');window.addEventListener('blur',acHandlers.blur)
-  acHandlers.ctxmenu=e=>{e.preventDefault();reportCheat('Klik kanan')};document.addEventListener('contextmenu',acHandlers.ctxmenu)
-  acHandlers.copy=e=>{e.preventDefault();reportCheat('Menyalin teks')};document.addEventListener('copy',acHandlers.copy)
-  acHandlers.paste=e=>{
-    const active=document.activeElement
-    if(active&&active.classList.contains('essay-answer-textarea'))return // boleh paste di essay
-    e.preventDefault();reportCheat('Menempel teks')
-  };document.addEventListener('paste',acHandlers.paste)
-  acHandlers.cut=e=>{e.preventDefault();reportCheat('Memotong teks')};document.addEventListener('cut',acHandlers.cut)
-  acHandlers.print=()=>reportCheat('Mencoba Print');window.addEventListener('beforeprint',acHandlers.print)
-  acHandlers.keydown=e=>{if(e.key==='F12'||(e.ctrlKey&&e.shiftKey&&['i','I','j','J','c','C'].includes(e.key))||(e.ctrlKey&&['u','U','s','S'].includes(e.key))||e.key==='PrintScreen'){e.preventDefault();reportCheat('Membuka DevTools')}};document.addEventListener('keydown',acHandlers.keydown)
-  acHandlers.fschange=()=>{if(!document.fullscreenElement)reportCheat('Keluar dari fullscreen')};document.addEventListener('fullscreenchange',acHandlers.fschange)
+  const cfg=getStore(KEY_CFG,{})
+  // Pindah tab / jendela kehilangan fokus
+  if(cfg.acTab!==false){
+    acHandlers.vischange=()=>{if(document.hidden)reportCheat('Berpindah tab/jendela')};document.addEventListener('visibilitychange',acHandlers.vischange)
+    acHandlers.blur=()=>reportCheat('Jendela kehilangan fokus');window.addEventListener('blur',acHandlers.blur)
+  }
+  // Klik kanan
+  if(cfg.acRclick!==false){
+    acHandlers.ctxmenu=e=>{e.preventDefault();reportCheat('Klik kanan')};document.addEventListener('contextmenu',acHandlers.ctxmenu)
+  }
+  // Copy / Paste / Cut
+  if(cfg.acCopy!==false){
+    acHandlers.copy=e=>{e.preventDefault();reportCheat('Menyalin teks')};document.addEventListener('copy',acHandlers.copy)
+    acHandlers.paste=e=>{
+      const active=document.activeElement
+      if(active&&active.classList.contains('essay-answer-textarea'))return // boleh paste di essay
+      e.preventDefault();reportCheat('Menempel teks')
+    };document.addEventListener('paste',acHandlers.paste)
+    acHandlers.cut=e=>{e.preventDefault();reportCheat('Memotong teks')};document.addEventListener('cut',acHandlers.cut)
+  }
+  // DevTools & shortcut keyboard
+  if(cfg.acDevtools!==false){
+    acHandlers.print=()=>reportCheat('Mencoba Print');window.addEventListener('beforeprint',acHandlers.print)
+    acHandlers.keydown=e=>{if(e.key==='F12'||(e.ctrlKey&&e.shiftKey&&['i','I','j','J','c','C'].includes(e.key))||(e.ctrlKey&&['u','U','s','S'].includes(e.key))||e.key==='PrintScreen'){e.preventDefault();reportCheat('Membuka DevTools')}};document.addEventListener('keydown',acHandlers.keydown)
+  }
+  // Keluar fullscreen
+  if(cfg.acFullscreen!==false){
+    acHandlers.fschange=()=>{if(!document.fullscreenElement)reportCheat('Keluar dari fullscreen')};document.addEventListener('fullscreenchange',acHandlers.fschange)
+  }
 }
 function detachAntiCheat(){
   if(!anticheatListenersAttached)return
