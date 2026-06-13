@@ -414,7 +414,7 @@ tr:last-child td{border-bottom:none}
             <div class="stat-card"><div class="stat-num" id="stat-soal">0</div><div class="stat-label">Total Soal</div></div>
           </div>
           <div class="table-wrap"><div class="table-scroll"><table>
-            <thead><tr><th>Nama</th><th>Kelas</th><th>Status</th><th>Progress</th><th>Curang</th><th>Aksi</th></tr></thead>
+            <thead><tr><th>Nama</th><th>Kelas</th><th>Status</th><th>Progress</th><th>Kecurangan</th><th>Aksi</th></tr></thead>
             <tbody id="live-table"><tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-mid)">Belum ada peserta aktif</td></tr></tbody>
           </table></div></div>
         </div>
@@ -443,10 +443,7 @@ tr:last-child td{border-bottom:none}
 
         <!-- PANEL PESERTA -->
         <div id="panel-peserta" class="panel">
-          <div class="table-wrap"><div class="table-scroll"><table>
-            <thead><tr><th>Nama</th><th>Kelas</th><th>Login</th><th>Status</th><th>Curang</th><th>Aksi</th></tr></thead>
-            <tbody id="peserta-table"><tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-mid)">Belum ada peserta</td></tr></tbody>
-          </table></div></div>
+          <div id="peserta-grouped-container"></div>
         </div>
 
         <!-- PANEL HASIL -->
@@ -460,8 +457,18 @@ tr:last-child td{border-bottom:none}
 
         <!-- PANEL PENGATURAN -->
         <div id="panel-pengaturan" class="panel">
-          <div class="card card-wide">
-            <h3 style="font-size:16px;font-weight:900;color:var(--green-dark);margin-bottom:16px">⚙️ Pengaturan Ujian</h3>
+          <!-- Selector ujian untuk pengaturan per-mapel -->
+          <div style="margin-bottom:14px">
+            <label style="display:block;font-weight:700;font-size:var(--fs-xs);color:var(--green-dark);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">⚙️ Pilih Mapel / Ujian yang Dikonfigurasi:</label>
+            <select id="cfg-exam-selector" onchange="loadConfigForExam(this.value)" autocomplete="off"
+              style="padding:9px 12px;border-radius:8px;border:2px solid var(--cream-dark);font-family:'Cairo',sans-serif;font-size:var(--fs-sm);font-weight:600;width:100%;background:#fff">
+              <option value="">-- Pilih Ujian --</option>
+            </select>
+            <div style="font-size:11px;color:var(--text-mid);margin-top:5px;font-weight:600">💡 Setiap mapel bisa memiliki aturan ujian yang berbeda-beda.</div>
+          </div>
+          <div class="card card-wide" id="cfg-panel-body" style="display:none">
+            <h3 style="font-size:16px;font-weight:900;color:var(--green-dark);margin-bottom:4px">⚙️ Pengaturan Ujian</h3>
+            <div id="cfg-exam-nama-label" style="font-size:var(--fs-xs);color:var(--text-mid);font-weight:700;margin-bottom:16px;padding:5px 10px;background:rgba(26,102,69,.08);border-radius:6px;display:inline-block"></div>
             <div class="setting-row">
               <div class="setting-info"><div class="setting-label">Mode Timer</div><div class="setting-desc">Timer per soal atau total</div></div>
               <div style="display:flex;gap:6px">
@@ -513,9 +520,11 @@ tr:last-child td{border-bottom:none}
               <div class="setting-info"><div class="setting-label">Acak Pilihan Jawaban</div><div class="setting-desc">Urutan A/B/C/D diacak (pilgan)</div></div>
               <label class="toggle"><input type="checkbox" id="cfg-acak-opsi" onchange="saveConfig()"><span class="toggle-slider"></span></label>
             </div>
-            <div class="setting-row">
-              <div class="setting-info"><div class="setting-label">Ganti Password</div><div class="setting-desc">Ubah password dashboard guru</div></div>
-              <button class="btn btn-outline btn-sm" onclick="showChangePassModal()">Ubah</button>
+            <div style="border-top:1px solid var(--cream-dark);margin-top:8px;padding-top:14px">
+              <div class="setting-row" style="border-bottom:none">
+                <div class="setting-info"><div class="setting-label">Ganti Password</div><div class="setting-desc">Ubah password dashboard guru</div></div>
+                <button class="btn btn-outline btn-sm" onclick="showChangePassModal()">Ubah</button>
+              </div>
             </div>
           </div>
         </div>
@@ -593,6 +602,15 @@ tr:last-child td{border-bottom:none}
   <div class="cheat-icon">⚠️</div>
   <div class="cheat-title">PERINGATAN!</div>
   <div class="cheat-desc" id="cheat-msg">Aktivitas mencurigakan terdeteksi!</div>
+</div>
+
+<!-- Modal Detail Kecurangan -->
+<div class="modal-backdrop" id="modal-cheat-detail">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-cheat-detail')">✕</button>
+    <div class="modal-title">🚨 Riwayat Kecurangan</div>
+    <div id="modal-cheat-detail-body"></div>
+  </div>
 </div>
 
 <!-- Modal Detail Hasil -->
@@ -768,7 +786,7 @@ function guruLogin(){
 function logout(){clearInterval(dashInterval);showScreen('screen-home');backToRole()}
 
 function loadGuruDashboard(){
-  loadConfig();renderExamSelector();renderSoalPanel();updateStats();renderLiveTable();updateExamStatusBadge();updatePerExamStatusBar()
+  renderExamSelector();renderSoalPanel();updateStats();renderLiveTable();updateExamStatusBadge();updatePerExamStatusBar()
   dashInterval=setInterval(()=>{
     fetch(GAS_URL,{method:'POST',body:JSON.stringify({action:'getGuruData'})}).then(r=>r.json()).then(data=>{
       setStore(KEY_PESERTA,data.peserta||[]);setStore(KEY_HASIL,data.hasil||[])
@@ -793,7 +811,7 @@ function showGuruPanel(name){
   if(name==='soal')renderSoalPanel()
   if(name==='peserta')renderPesertaTable()
   if(name==='hasil')renderHasilTable()
-  if(name==='pengaturan')loadConfig()
+  if(name==='pengaturan'){renderCfgExamSelector()}
 }
 
 // ── STATS & TABLES ──
@@ -809,42 +827,89 @@ function updateStats(){
 function renderLiveTable(){
   const pArr=getStore(KEY_PESERTA,[]),cfg=getStore(KEY_CFG,{})
   let activeIds=cfg.activeExamIds||(cfg.activeExamId?[cfg.activeExamId]:[])
-  const tbody=document.getElementById('live-table')
+  const container=document.getElementById('live-table').closest('.table-wrap').parentElement
   const active=pArr.filter(p=>!activeIds.length||activeIds.includes(p.examId))
-  if(!active.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px">Belum ada peserta aktif</td></tr>';return}
-  tbody.innerHTML=active.map(p=>`<tr>
-    <td><b>${p.nama}</b></td><td>${p.kelas}</td>
-    <td>${p.dq?'<span class="badge badge-red">DQ</span>':p.status==='selesai'?'<span class="badge badge-green">Selesai</span>':'<span class="badge badge-gold">Aktif</span>'}</td>
-    <td>${p.progress||0}%</td>
-    <td>${p.cheatCount?`<span class="badge badge-red">⚠ ${p.cheatCount}x</span>`:'<span class="badge badge-gray">Bersih</span>'}</td>
-    <td><button class="btn btn-red btn-sm" onclick="forceDQ('${p.id}')">DQ</button></td>
-  </tr>`).join('')
+  if(!active.length){
+    document.getElementById('live-table').innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px">Belum ada peserta aktif</td></tr>'
+    return
+  }
+  // Kelompokkan per kelas
+  const byKelas={}
+  active.forEach(p=>{if(!byKelas[p.kelas])byKelas[p.kelas]=[];byKelas[p.kelas].push(p)})
+  const kelasList=Object.keys(byKelas).sort()
+  let allRows=''
+  kelasList.forEach(kelas=>{
+    allRows+=`<tr style="background:var(--green-dark)"><td colspan="6" style="color:var(--gold);font-weight:900;font-size:var(--fs-xs);letter-spacing:1px;padding:7px 12px">📚 ${kelas} (${byKelas[kelas].length} santri)</td></tr>`
+    allRows+=byKelas[kelas].map(p=>{
+      const cheatBadge=p.cheatCount
+        ?`<button class="btn btn-sm" style="background:rgba(192,57,43,.12);color:var(--red);border:1px solid rgba(192,57,43,.3);font-size:10px;padding:3px 8px" onclick="showCheatDetail('${p.id}')">⚠ ${p.cheatCount}x Curang – Lihat</button>`
+        :'<span class="badge badge-gray">✅ Bersih</span>'
+      return `<tr>
+        <td><b>${p.nama}</b></td><td>${p.kelas}</td>
+        <td>${p.dq?'<span class="badge badge-red">DQ</span>':p.status==='selesai'?'<span class="badge badge-green">Selesai</span>':'<span class="badge badge-gold">Aktif</span>'}</td>
+        <td>${p.progress||0}%</td>
+        <td>${cheatBadge}</td>
+        <td><button class="btn btn-red btn-sm" onclick="forceDQ('${p.id}')">DQ</button></td>
+      </tr>`}).join('')
+  })
+  document.getElementById('live-table').innerHTML=allRows
 }
 
 function renderPesertaTable(){
-  const pArr=getStore(KEY_PESERTA,[]);const tbody=document.getElementById('peserta-table')
-  if(!pArr.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px">Belum ada peserta</td></tr>';return}
-  tbody.innerHTML=pArr.map(p=>`<tr>
-    <td><b>${p.nama}</b></td><td>${p.kelas}</td>
-    <td>${p.loginTime?new Date(p.loginTime).toLocaleTimeString('id-ID'):'-'}</td>
-    <td>${p.dq?'<span class="badge badge-red">DQ</span>':p.status==='selesai'?'<span class="badge badge-green">Selesai</span>':'<span class="badge badge-gold">Mengerjakan</span>'}</td>
-    <td>${p.cheatCount?`<span class="badge badge-red">⚠ ${p.cheatCount}x</span>`:'Bersih'}</td>
-    <td style="white-space:nowrap">${!p.dq?`<button class="btn btn-red btn-sm" onclick="forceDQ('${p.id}')">DQ</button> `:''}
-    <button class="btn btn-outline btn-sm" onclick="hapusPeserta('${p.id}')">Hapus</button></td>
-  </tr>`).join('')
+  const pArr=getStore(KEY_PESERTA,[])
+  const container=document.getElementById('peserta-grouped-container')
+  if(!pArr.length){container.innerHTML='<div style="text-align:center;padding:32px;color:var(--text-mid)">Belum ada peserta</div>';return}
+  // Kelompokkan per kelas
+  const byKelas={}
+  pArr.forEach(p=>{if(!byKelas[p.kelas])byKelas[p.kelas]=[];byKelas[p.kelas].push(p)})
+  const kelasList=Object.keys(byKelas).sort()
+  let html=''
+  kelasList.forEach(kelas=>{
+    html+=`<div style="margin-bottom:16px">
+      <div style="background:var(--green-dark);color:var(--gold);font-weight:900;font-size:var(--fs-xs);letter-spacing:1px;padding:8px 14px;border-radius:10px 10px 0 0">
+        📚 ${kelas} &nbsp;·&nbsp; ${byKelas[kelas].length} santri
+      </div>
+      <div class="table-wrap" style="border-radius:0 0 10px 10px"><div class="table-scroll"><table>
+        <thead><tr><th>Nama</th><th>Login</th><th>Status</th><th>Kecurangan</th><th>Aksi</th></tr></thead>
+        <tbody>`
+    byKelas[kelas].forEach(p=>{
+      const cheatCell=p.cheatCount
+        ?`<div><button class="btn btn-sm" style="background:rgba(192,57,43,.12);color:var(--red);border:1px solid rgba(192,57,43,.3);font-size:10px;padding:3px 8px;white-space:nowrap" onclick="showCheatDetail('${p.id}')">⚠ ${p.cheatCount}x – Detail</button></div>`
+        :'<span style="color:var(--green-mid);font-weight:700;font-size:var(--fs-xs)">✅ Bersih</span>'
+      html+=`<tr>
+        <td><b>${p.nama}</b></td>
+        <td>${p.loginTime?new Date(p.loginTime).toLocaleTimeString('id-ID'):'-'}</td>
+        <td>${p.dq?'<span class="badge badge-red">DQ</span>':p.status==='selesai'?'<span class="badge badge-green">Selesai</span>':'<span class="badge badge-gold">Mengerjakan</span>'}</td>
+        <td>${cheatCell}</td>
+        <td style="white-space:nowrap">${!p.dq?`<button class="btn btn-red btn-sm" onclick="forceDQ('${p.id}')">DQ</button> `:''}
+        <button class="btn btn-outline btn-sm" onclick="hapusPeserta('${p.id}')">Hapus</button></td>
+      </tr>`
+    })
+    html+=`</tbody></table></div></div></div>`
+  })
+  container.innerHTML=html
 }
 
 function renderHasilTable(){
   const hArr=getStore(KEY_HASIL,[]);const tbody=document.getElementById('hasil-table')
   if(!hArr.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px">Belum ada hasil</td></tr>';return}
-  tbody.innerHTML=hArr.map(h=>`<tr>
-    <td><b>${h.nama}</b></td><td>${h.kelas}</td>
-    <td style="font-size:17px;font-weight:900;color:var(--green-dark)">${h.nilaiAkhir!==undefined?h.nilaiAkhir:h.nilai}</td>
-    <td style="color:var(--green-mid);font-weight:700">${h.benar}</td>
-    <td style="color:var(--red);font-weight:700">${h.salah}</td>
-    <td>${h.dq?'<span class="badge badge-red">DQ</span>':h.hasEssay?'<span class="badge badge-blue">Essay</span>':'<span class="badge badge-green">Selesai</span>'}</td>
-    <td><button class="btn btn-outline btn-sm" onclick="showDetailHasil('${h.id}')">Detail</button></td>
-  </tr>`).join('')
+  // Kelompokkan per kelas
+  const byKelas={}
+  hArr.forEach(h=>{const k=h.kelas||'Tidak Diketahui';if(!byKelas[k])byKelas[k]=[];byKelas[k].push(h)})
+  const kelasList=Object.keys(byKelas).sort()
+  let rows=''
+  kelasList.forEach(kelas=>{
+    rows+=`<tr style="background:var(--green-dark)"><td colspan="7" style="color:var(--gold);font-weight:900;font-size:var(--fs-xs);letter-spacing:1px;padding:7px 12px">📚 ${kelas} (${byKelas[kelas].length} peserta)</td></tr>`
+    rows+=byKelas[kelas].map(h=>`<tr>
+      <td><b>${h.nama}</b></td><td>${h.kelas}</td>
+      <td style="font-size:17px;font-weight:900;color:var(--green-dark)">${h.nilaiAkhir!==undefined?h.nilaiAkhir:h.nilai}</td>
+      <td style="color:var(--green-mid);font-weight:700">${h.benar}</td>
+      <td style="color:var(--red);font-weight:700">${h.salah}</td>
+      <td>${h.dq?'<span class="badge badge-red">DQ</span>':h.hasEssay?'<span class="badge badge-blue">Essay</span>':'<span class="badge badge-green">Selesai</span>'}</td>
+      <td><button class="btn btn-outline btn-sm" onclick="showDetailHasil('${h.id}')">Detail</button></td>
+    </tr>`).join('')
+  })
+  tbody.innerHTML=rows
 }
 
 // ── AKSI DATA ──
@@ -861,6 +926,33 @@ function forceDQ(id){
   showToast('Peserta didiskualifikasi.',true)
 }
 function hapusPeserta(id){if(!confirm('Hapus peserta ini?'))return;fetch(GAS_URL,{method:'POST',body:JSON.stringify({action:'hapusPeserta',id})});showToast('Peserta dihapus.')}
+
+function showCheatDetail(id){
+  const pArr=getStore(KEY_PESERTA,[]);const p=pArr.find(x=>x.id===id);if(!p)return
+  const log=p.cheatLog||[]
+  let html=`<div style="margin-bottom:12px"><b style="font-size:var(--fs-sm)">${p.nama}</b> <span style="color:var(--text-mid);font-size:var(--fs-xs)">– ${p.kelas}</span></div>`
+  html+=`<div style="display:flex;gap:8px;margin-bottom:14px">
+    <div style="background:rgba(192,57,43,.1);border-radius:8px;padding:8px 14px;text-align:center;flex:1">
+      <div style="font-size:22px;font-weight:900;color:var(--red)">${p.cheatCount||0}</div>
+      <div style="font-size:10px;color:var(--text-mid);font-weight:700">TOTAL PELANGGARAN</div>
+    </div>
+    <div style="background:${p.dq?'rgba(192,57,43,.1)':'rgba(232,184,75,.1)'};border-radius:8px;padding:8px 14px;text-align:center;flex:1">
+      <div style="font-size:13px;font-weight:900;color:${p.dq?'var(--red)':'#856404'}">${p.dq?'DQ':'Aktif'}</div>
+      <div style="font-size:10px;color:var(--text-mid);font-weight:700">STATUS</div>
+    </div>
+  </div>`
+  if(log.length){
+    html+=`<div style="font-size:var(--fs-xs);font-weight:700;color:var(--green-dark);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">📋 Riwayat Pelanggaran:</div>`
+    html+=log.map((item,i)=>`<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;margin-bottom:6px;background:#fff;border-radius:8px;border-left:3px solid var(--red)">
+      <div style="min-width:22px;height:22px;background:var(--red);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;flex-shrink:0">${i+1}</div>
+      <div style="font-size:var(--fs-xs);color:var(--text-dark);font-weight:600;line-height:1.5">${escHtml(item)}</div>
+    </div>`).join('')
+  }else{
+    html+=`<div style="text-align:center;padding:20px;color:var(--text-mid);font-size:var(--fs-sm)">Belum ada catatan pelanggaran</div>`
+  }
+  document.getElementById('modal-cheat-detail-body').innerHTML=html
+  showModal('modal-cheat-detail')
+}
 
 // ── DETAIL HASIL + NILAI ESSAY ──
 function showDetailHasil(id){
@@ -926,6 +1018,13 @@ function renderExamSelector(){
   sel.innerHTML=exams.map(e=>`<option value="${e.id}">${e.nama}</option>`).join('')
   if(exams.length&&!currentExamId)loadExam(exams[0].id)
   else if(currentExamId)sel.value=currentExamId
+  // Sync cfg selector juga
+  const cfgSel=document.getElementById('cfg-exam-selector')
+  if(cfgSel){
+    cfgSel.innerHTML='<option value="">-- Pilih Ujian --</option>'+exams.map(e=>`<option value="${e.id}">${e.nama}${e.kelas&&e.kelas!=='Semua Kelas'?' ('+e.kelas+')':''}</option>`).join('')
+    if(currentCfgExamId)cfgSel.value=currentCfgExamId
+    else if(currentExamId){cfgSel.value=currentExamId}
+  }
 }
 function loadExam(id){currentExamId=id;renderSoalList();updatePerExamStatusBar()}
 function renderSoalPanel(){renderExamSelector();renderSoalList();updatePerExamStatusBar()}
@@ -1131,43 +1230,90 @@ function updateExamStatusBadge(){
     if(btnM){btnM.textContent='▶ Mulai';btnM.style.background=''}
   }
 }
-function loadConfig(){
-  const cfg=getStore(KEY_CFG,{}),f=(id,v)=>{const el=document.getElementById(id);if(el){if(el.type==='checkbox')el.checked=!!v;else el.value=v||''}}
+// ── CONFIG PER MAPEL ──
+let currentCfgExamId=null // exam yang sedang dikonfigurasi
+
+function renderCfgExamSelector(){
+  const exams=getStore(KEY_EXAMS,[])
+  const sel=document.getElementById('cfg-exam-selector');if(!sel)return
+  sel.innerHTML='<option value="">-- Pilih Ujian --</option>'+exams.map(e=>`<option value="${e.id}">${e.nama}${e.kelas&&e.kelas!=='Semua Kelas'?' ('+e.kelas+')':''}</option>`).join('')
+  // Jika sudah ada currentExamId dari panel soal, pilih itu
+  if(currentExamId){sel.value=currentExamId;loadConfigForExam(currentExamId)}
+  else if(exams.length){sel.value=exams[0].id;loadConfigForExam(exams[0].id)}
+}
+
+function loadConfigForExam(examId){
+  currentCfgExamId=examId
+  const panel=document.getElementById('cfg-panel-body')
+  if(!examId){if(panel)panel.style.display='none';return}
+  const exams=getStore(KEY_EXAMS,[]),exam=exams.find(e=>e.id===examId)
+  if(!exam){if(panel)panel.style.display='none';return}
+  if(panel)panel.style.display='block'
+  const label=document.getElementById('cfg-exam-nama-label')
+  if(label)label.textContent='📚 '+exam.nama+(exam.kelas&&exam.kelas!=='Semua Kelas'?' – '+exam.kelas:'')
+  // Ambil cfg per exam, fallback ke global cfg
+  const globalCfg=getStore(KEY_CFG,{})
+  const examCfg=(exam.cfg)||{}
+  // Merge: exam-specific override global
+  const cfg=Object.assign({timerMode:'persoal',timerSoal:60,timerTotal:60,acTab:true,acCopy:true,acRclick:true,acDevtools:true,acFullscreen:true,dq:true,toleransi:1,acak:false,acakOpsi:false},globalCfg,examCfg)
+  const f=(id,v)=>{const el=document.getElementById(id);if(el){if(el.type==='checkbox')el.checked=!!v;else el.value=v||''}}
   f('cfg-timer-soal',cfg.timerSoal||60);f('cfg-timer-total',cfg.timerTotal||60)
-  // Per-type anticheat (default true jika belum ada)
-  f('cfg-ac-tab',   cfg.acTab!==false)
-  f('cfg-ac-copy',  cfg.acCopy!==false)
-  f('cfg-ac-rclick',cfg.acRclick!==false)
-  f('cfg-ac-devtools',cfg.acDevtools!==false)
+  f('cfg-ac-tab',cfg.acTab!==false);f('cfg-ac-copy',cfg.acCopy!==false)
+  f('cfg-ac-rclick',cfg.acRclick!==false);f('cfg-ac-devtools',cfg.acDevtools!==false)
   f('cfg-ac-fullscreen',cfg.acFullscreen!==false)
-  f('cfg-dq',cfg.dq!==false)
-  f('cfg-toleransi',cfg.toleransi||1);f('cfg-acak',cfg.acak||false);f('cfg-acak-opsi',cfg.acakOpsi||false)
-  setTimerMode(cfg.timerMode||'persoal')
+  f('cfg-dq',cfg.dq!==false);f('cfg-toleransi',cfg.toleransi||1)
+  f('cfg-acak',cfg.acak||false);f('cfg-acak-opsi',cfg.acakOpsi||false)
+  setTimerModeUI(cfg.timerMode||'persoal')
 }
+
+function loadConfig(){
+  renderCfgExamSelector()
+}
+
 function saveConfig(){
+  if(!currentCfgExamId){showToast('Pilih ujian dulu!',true);return}
   const g=id=>{const el=document.getElementById(id);return el?(el.type==='checkbox'?el.checked:el.value):null}
-  const cfg=getStore(KEY_CFG,{})
-  const keepIds=cfg.activeExamIds||[];const keepId=cfg.activeExamId||null
-  cfg.timerSoal=parseInt(g('cfg-timer-soal'))||60;cfg.timerTotal=parseInt(g('cfg-timer-total'))||60
-  // Per-type anticheat
-  cfg.acTab=       g('cfg-ac-tab')!==null       ? g('cfg-ac-tab')       : cfg.acTab!==false
-  cfg.acCopy=      g('cfg-ac-copy')!==null      ? g('cfg-ac-copy')      : cfg.acCopy!==false
-  cfg.acRclick=    g('cfg-ac-rclick')!==null    ? g('cfg-ac-rclick')    : cfg.acRclick!==false
-  cfg.acDevtools=  g('cfg-ac-devtools')!==null  ? g('cfg-ac-devtools')  : cfg.acDevtools!==false
-  cfg.acFullscreen=g('cfg-ac-fullscreen')!==null? g('cfg-ac-fullscreen'): cfg.acFullscreen!==false
-  // anticheat global = true jika minimal satu aktif (backward compat)
-  cfg.anticheat=cfg.acTab||cfg.acCopy||cfg.acRclick||cfg.acDevtools||cfg.acFullscreen
-  cfg.dq=g('cfg-dq');cfg.toleransi=parseInt(g('cfg-toleransi'))||1
-  cfg.acak=g('cfg-acak');cfg.acakOpsi=g('cfg-acak-opsi')
-  cfg.activeExamIds=keepIds;cfg.activeExamId=keepId
-  setStore(KEY_CFG,cfg);gasSync('saveConfig',cfg);showToast('Pengaturan disimpan.')
+  let eArr=getStore(KEY_EXAMS,[]);const exam=eArr.find(e=>e.id===currentCfgExamId);if(!exam)return
+  if(!exam.cfg)exam.cfg={}
+  exam.cfg.timerMode=document.getElementById('btn-timer-persoal').style.background?'persoal':'total'
+  // Deteksi mode dari tombol yg aktif
+  const btnP=document.getElementById('btn-timer-persoal'),btnT=document.getElementById('btn-timer-total')
+  if(btnP&&btnP.style.background&&btnP.style.background.includes('green-mid'))exam.cfg.timerMode='persoal'
+  else exam.cfg.timerMode='total'
+  exam.cfg.timerSoal=parseInt(g('cfg-timer-soal'))||60
+  exam.cfg.timerTotal=parseInt(g('cfg-timer-total'))||60
+  exam.cfg.acTab=g('cfg-ac-tab')!==null?g('cfg-ac-tab'):true
+  exam.cfg.acCopy=g('cfg-ac-copy')!==null?g('cfg-ac-copy'):true
+  exam.cfg.acRclick=g('cfg-ac-rclick')!==null?g('cfg-ac-rclick'):true
+  exam.cfg.acDevtools=g('cfg-ac-devtools')!==null?g('cfg-ac-devtools'):true
+  exam.cfg.acFullscreen=g('cfg-ac-fullscreen')!==null?g('cfg-ac-fullscreen'):true
+  exam.cfg.anticheat=exam.cfg.acTab||exam.cfg.acCopy||exam.cfg.acRclick||exam.cfg.acDevtools||exam.cfg.acFullscreen
+  exam.cfg.dq=g('cfg-dq');exam.cfg.toleransi=parseInt(g('cfg-toleransi'))||1
+  exam.cfg.acak=g('cfg-acak');exam.cfg.acakOpsi=g('cfg-acak-opsi')
+  setStore(KEY_EXAMS,eArr);gasSync('saveExams',eArr);showToast('Pengaturan '+exam.nama+' disimpan.')
 }
+
 function setTimerMode(mode){
-  const cfg=getStore(KEY_CFG,{});cfg.timerMode=mode;setStore(KEY_CFG,cfg);gasSync('saveConfig',cfg)
+  setTimerModeUI(mode)
+  // simpan langsung ke exam
+  if(currentCfgExamId){
+    let eArr=getStore(KEY_EXAMS,[]);const exam=eArr.find(e=>e.id===currentCfgExamId)
+    if(exam){if(!exam.cfg)exam.cfg={};exam.cfg.timerMode=mode;setStore(KEY_EXAMS,eArr);gasSync('saveExams',eArr)}
+  }
+}
+
+function setTimerModeUI(mode){
   const ps=document.getElementById('setting-timer-persoal-row'),ts=document.getElementById('setting-timer-total-row')
   const bp=document.getElementById('btn-timer-persoal'),bt=document.getElementById('btn-timer-total')
-  if(mode==='persoal'){ps.style.display='flex';ts.style.display='none';bp.style.background='var(--green-mid)';bp.style.color='#fff';bt.style.background='';bt.style.color=''}
-  else{ps.style.display='none';ts.style.display='flex';bt.style.background='var(--green-mid)';bt.style.color='#fff';bp.style.background='';bp.style.color=''}
+  if(mode==='persoal'){
+    if(ps)ps.style.display='flex';if(ts)ts.style.display='none'
+    if(bp){bp.style.background='var(--green-mid)';bp.style.color='#fff'}
+    if(bt){bt.style.background='';bt.style.color=''}
+  }else{
+    if(ps)ps.style.display='none';if(ts)ts.style.display='flex'
+    if(bt){bt.style.background='var(--green-mid)';bt.style.color='#fff'}
+    if(bp){bp.style.background='';bp.style.color=''}
+  }
 }
 function showChangePassModal(){document.getElementById('pass-baru').value='';document.getElementById('pass-konfirm').value='';showModal('modal-ganti-pass')}
 function gantiPassword(){
@@ -1178,7 +1324,12 @@ function gantiPassword(){
 
 // ── MESIN UJIAN ──
 function startExam(exam){
-  const cfg=getStore(KEY_CFG,{})
+  // Ambil cfg dari exam.cfg (per mapel), fallback ke global cfg
+  const globalCfg=getStore(KEY_CFG,{})
+  const examCfg=exam.cfg||{}
+  const cfg=Object.assign({timerMode:'persoal',timerSoal:60,timerTotal:60,acTab:true,acCopy:true,acRclick:true,acDevtools:true,acFullscreen:true,anticheat:true,dq:true,toleransi:1,acak:false,acakOpsi:false},globalCfg,examCfg)
+  // Simpan cfg aktif sementara untuk dipakai attachAntiCheat dll
+  setStore(KEY_CFG,Object.assign({},cfg,{activeExamIds:globalCfg.activeExamIds,activeExamId:globalCfg.activeExamId}))
   let soalArr=JSON.parse(JSON.stringify(exam.soal))
   if(cfg.acak)soalArr=soalArr.map(v=>({v,s:Math.random()})).sort((a,b)=>a.s-b.s).map(x=>x.v)
   if(cfg.acakOpsi)soalArr=soalArr.map(s=>{
