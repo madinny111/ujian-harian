@@ -210,13 +210,15 @@ tr:last-child td{border-bottom:none}
 .essay-answer-hint{font-size:11px;color:var(--text-mid);margin-top:6px;font-style:italic}
 
 /* Exam Footer */
-.exam-footer{padding:10px 14px;background:#fff;border-top:1px solid var(--cream-dark);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:8px}
-.q-dots{display:flex;flex-wrap:wrap;gap:5px;flex:1;min-width:0;overflow:hidden;max-height:68px}
+.exam-footer{padding:10px 14px;background:#fff;border-top:1px solid var(--cream-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0;gap:8px}
+.q-dots{display:flex;flex-wrap:nowrap;gap:5px;min-width:0}
 .q-dot{width:26px;height:26px;border-radius:50%;border:2px solid var(--cream-dark);background:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--text-mid);cursor:pointer;transition:all .15s;flex-shrink:0}
 .q-dot.answered{background:var(--green-mid);border-color:var(--green-mid);color:#fff}
 .q-dot.answered-essay{background:#3498db;border-color:#3498db;color:#fff}
 .q-dot.current{border-color:var(--gold);box-shadow:0 0 0 2px rgba(232,184,75,.3)}
-.exam-nav-btns{display:flex;gap:6px;flex-shrink:0}
+.q-nav-bar{background:#fff;border-top:1px solid var(--cream-dark);padding:8px 14px;display:flex;align-items:center;flex-shrink:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.q-nav-bar::-webkit-scrollbar{height:3px}.q-nav-bar::-webkit-scrollbar-thumb{background:var(--cream-dark);border-radius:2px}
+.exam-nav-btns{display:flex;gap:6px;flex-shrink:0;justify-content:center}
 
 /* HASIL */
 .hasil-card{background:var(--cream);border-radius:var(--radius);padding:28px 20px;max-width:520px;width:100%;margin:20px auto;box-shadow:var(--shadow);text-align:center}
@@ -431,6 +433,8 @@ tr:last-child td{border-bottom:none}
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn btn-outline btn-sm" onclick="showNewExamModal()">+ Ujian Baru</button>
+              <button class="btn btn-outline btn-sm" onclick="showEditExamModal()" id="btn-edit-exam">✏️ Edit</button>
+              <button class="btn btn-red btn-sm" onclick="hapusExam()" id="btn-hapus-exam">🗑 Hapus</button>
               <input type="file" id="fileSoalDocx" accept=".docx" style="display:none" onchange="prosesDocx(this)">
               <button class="btn btn-gold btn-sm" onclick="document.getElementById('fileSoalDocx').click()">📄 Docx</button>
               <button class="btn btn-sm" onclick="tambahSoal('pilgan')" style="background:var(--green-mid);color:#fff">+ Pilgan</button>
@@ -520,6 +524,26 @@ tr:last-child td{border-bottom:none}
               <div class="setting-info"><div class="setting-label">Acak Pilihan Jawaban</div><div class="setting-desc">Urutan A/B/C/D diacak (pilgan)</div></div>
               <label class="toggle"><input type="checkbox" id="cfg-acak-opsi" onchange="saveConfig()"><span class="toggle-slider"></span></label>
             </div>
+            <div class="setting-row">
+              <div class="setting-info"><div class="setting-label">Format Jawaban Pilihan Ganda</div><div class="setting-desc">Jumlah opsi yang tersedia untuk santri</div></div>
+              <select id="cfg-opsi-count" onchange="saveConfig()" autocomplete="off" style="padding:7px 10px;border-radius:8px;border:2px solid var(--cream-dark);font-family:'Cairo',sans-serif;font-size:var(--fs-xs);font-weight:700">
+                <option value="4">A, B, C, D (4 opsi)</option>
+                <option value="3">A, B, C (3 opsi)</option>
+                <option value="2">A, B (2 opsi)</option>
+              </select>
+            </div>
+            <div style="border-top:1px solid var(--cream-dark);margin-top:8px;padding-top:14px">
+              <div style="font-size:var(--fs-xs);font-weight:900;color:var(--green-dark);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">⚖️ Bobot Nilai Per Tipe Soal</div>
+              <div class="setting-row">
+                <div class="setting-info"><div class="setting-label">Bobot Pilihan Ganda (%)</div><div class="setting-desc">Porsi nilai dari soal pilgan</div></div>
+                <input type="number" id="cfg-bobot-pilgan" value="60" min="0" max="100" autocomplete="off" style="width:70px;padding:7px 10px" onchange="saveConfig()">
+              </div>
+              <div class="setting-row">
+                <div class="setting-info"><div class="setting-label">Bobot Essay (%)</div><div class="setting-desc">Porsi nilai dari soal essay</div></div>
+                <input type="number" id="cfg-bobot-essay" value="40" min="0" max="100" autocomplete="off" style="width:70px;padding:7px 10px" onchange="saveConfig()">
+              </div>
+              <div style="font-size:11px;color:var(--text-mid);margin-top:4px;font-weight:600">💡 Total bobot pilgan + essay harus = 100%</div>
+            </div>
             <div style="border-top:1px solid var(--cream-dark);margin-top:8px;padding-top:14px">
               <div class="setting-row" style="border-bottom:none">
                 <div class="setting-info"><div class="setting-label">Ganti Password</div><div class="setting-desc">Ubah password dashboard guru</div></div>
@@ -557,8 +581,10 @@ tr:last-child td{border-bottom:none}
     </div>
     <div class="exam-progress-bar"><div class="exam-progress-fill" id="exam-progress-fill" style="width:0%"></div></div>
     <div class="exam-body"><div class="exam-question-area" id="exam-question-area"></div></div>
-    <div class="exam-footer">
+    <div class="q-nav-bar" id="q-nav-bar">
       <div class="q-dots" id="q-dots"></div>
+    </div>
+    <div class="exam-footer">
       <div class="exam-nav-btns">
         <button class="btn btn-outline btn-sm" id="btn-prev" onclick="prevSoal()">←</button>
         <button class="btn btn-primary btn-sm" id="btn-next" onclick="nextSoal()">→</button>
@@ -638,6 +664,24 @@ tr:last-child td{border-bottom:none}
       </select>
     </div>
     <button class="btn btn-primary" onclick="createExam()">✅ Buat Ujian</button>
+  </div>
+</div>
+
+<!-- Modal Edit Ujian -->
+<div class="modal-backdrop" id="modal-exam-edit">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-exam-edit')">✕</button>
+    <div class="modal-title">✏️ Edit Ujian</div>
+    <div class="form-group"><label>Nama Ujian / Mapel</label>
+      <input type="text" id="edit-exam-nama" placeholder="cth: Fiqih Bab Thaharah" autocomplete="organization">
+    </div>
+    <div class="form-group"><label>Kelas</label>
+      <select id="edit-exam-kelas" autocomplete="off">
+        <option>Semua Kelas</option><option>Kelas 1 Ula</option><option>Kelas 2 Ula</option>
+        <option>Kelas 3 Ula</option><option>Kelas 4 Ula</option><option>Kelas 5 Ula</option><option>Kelas 6 Ula</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" onclick="saveEditExam()">💾 Simpan Perubahan</button>
   </div>
 </div>
 
@@ -786,13 +830,21 @@ function guruLogin(){
 function logout(){clearInterval(dashInterval);showScreen('screen-home');backToRole()}
 
 function loadGuruDashboard(){
-  renderExamSelector();renderSoalPanel();updateStats();renderLiveTable();updateExamStatusBadge();updatePerExamStatusBar()
+  // Fetch data lengkap dari server dulu sebelum render
+  fetch(GAS_URL,{method:'POST',body:JSON.stringify({action:'getGuruData'})}).then(r=>r.json()).then(data=>{
+    setStore(KEY_EXAMS,data.exams||[]);setStore(KEY_CFG,data.cfg||{})
+    setStore(KEY_PESERTA,data.peserta||[]);setStore(KEY_HASIL,data.hasil||[])
+    renderExamSelector();renderSoalPanel();updateStats();renderLiveTable();renderPesertaTable();renderHasilTable();updateExamStatusBadge();updatePerExamStatusBar()
+  }).catch(()=>{
+    renderExamSelector();renderSoalPanel();updateStats();renderLiveTable();updateExamStatusBadge();updatePerExamStatusBar()
+  })
   dashInterval=setInterval(()=>{
     fetch(GAS_URL,{method:'POST',body:JSON.stringify({action:'getGuruData'})}).then(r=>r.json()).then(data=>{
       setStore(KEY_PESERTA,data.peserta||[]);setStore(KEY_HASIL,data.hasil||[])
+      setStore(KEY_EXAMS,data.exams||[])
       updateStats();renderLiveTable();renderPesertaTable();renderHasilTable()
     })
-  },4000)
+  },5000)
 }
 
 // ── GURU PANEL ──
@@ -1037,7 +1089,12 @@ function renderSoalList(){
 }
 
 function renderSoalItem(s,i){
-  const letters=['A','B','C','D'],tipe=s.tipe||'pilgan'
+  const allLetters=['A','B','C','D']
+  // Ambil opsiCount dari cfg exam aktif
+  const examNow=getStore(KEY_EXAMS,[]).find(e=>e.id===currentExamId)
+  const opsiCount=parseInt((examNow&&examNow.cfg&&examNow.cfg.opsiCount)||4)
+  const letters=allLetters.slice(0,opsiCount)
+  const tipe=s.tipe||'pilgan'
   if(tipe==='essay'){
     return `<div class="soal-item">
       <div class="soal-header">
@@ -1086,7 +1143,9 @@ function pushExams(){gasSync('saveExams',getStore(KEY_EXAMS,[]));renderSoalList(
 function tambahSoal(tipe='pilgan'){
   let eArr=getStore(KEY_EXAMS,[]),ex=eArr.find(e=>e.id===currentExamId);if(!ex)return
   if(!ex.soal)ex.soal=[]
-  ex.soal.push(tipe==='essay'?{id:uid(),tipe:'essay',teks:'',kunci:''}:{id:uid(),tipe:'pilgan',teks:'',opsi:['','','',''],jawaban:0})
+  const examCfgNow=(ex.cfg)||{};const opsiN=parseInt(examCfgNow.opsiCount)||4
+  const emptyOpsi=Array.from({length:opsiN},()=>'')
+  ex.soal.push(tipe==='essay'?{id:uid(),tipe:'essay',teks:'',kunci:''}:{id:uid(),tipe:'pilgan',teks:'',opsi:emptyOpsi,jawaban:0})
   setStore(KEY_EXAMS,eArr);pushExams();showToast('Soal ditambahkan.')
 }
 
@@ -1113,6 +1172,35 @@ function setJawabanBenar(sId,oIdx){
 }
 
 function showNewExamModal(){showModal('modal-exam-baru')}
+
+function hapusExam(){
+  if(!currentExamId)return showToast('Pilih ujian dulu.',true)
+  let eArr=getStore(KEY_EXAMS,[]);const ex=eArr.find(e=>e.id===currentExamId)
+  if(!ex)return
+  if(!confirm('Hapus ujian "'+ex.nama+'" beserta semua soalnya? Tindakan ini tidak bisa dibatalkan.'))return
+  eArr=eArr.filter(e=>e.id!==currentExamId)
+  setStore(KEY_EXAMS,eArr);gasSync('saveExams',eArr)
+  currentExamId=eArr.length?eArr[0].id:null
+  renderExamSelector();renderSoalList();showToast('Ujian dihapus.')
+}
+
+function showEditExamModal(){
+  if(!currentExamId)return showToast('Pilih ujian dulu.',true)
+  const ex=getStore(KEY_EXAMS,[]).find(e=>e.id===currentExamId);if(!ex)return
+  document.getElementById('edit-exam-nama').value=ex.nama||''
+  document.getElementById('edit-exam-kelas').value=ex.kelas||'Semua Kelas'
+  showModal('modal-exam-edit')
+}
+
+function saveEditExam(){
+  const nama=document.getElementById('edit-exam-nama').value.trim()
+  const kelas=document.getElementById('edit-exam-kelas').value
+  if(!nama)return alert('Masukkan nama ujian!')
+  let eArr=getStore(KEY_EXAMS,[]);const ex=eArr.find(e=>e.id===currentExamId);if(!ex)return
+  ex.nama=nama;ex.kelas=kelas
+  setStore(KEY_EXAMS,eArr);gasSync('saveExams',eArr)
+  closeModal('modal-exam-edit');renderExamSelector();showToast('Ujian berhasil diubah!')
+}
 function createExam(){
   const nama=document.getElementById('new-exam-nama').value.trim(),kelas=document.getElementById('new-exam-kelas').value
   if(!nama)return alert('Masukkan nama ujian!')
@@ -1263,6 +1351,10 @@ function loadConfigForExam(examId){
   f('cfg-ac-fullscreen',cfg.acFullscreen!==false)
   f('cfg-dq',cfg.dq!==false);f('cfg-toleransi',cfg.toleransi||1)
   f('cfg-acak',cfg.acak||false);f('cfg-acak-opsi',cfg.acakOpsi||false)
+  // Format opsi dan bobot
+  const opsiSel=document.getElementById('cfg-opsi-count');if(opsiSel)opsiSel.value=String(cfg.opsiCount||4)
+  f('cfg-bobot-pilgan',cfg.bobotPilgan!==undefined?cfg.bobotPilgan:60)
+  f('cfg-bobot-essay',cfg.bobotEssay!==undefined?cfg.bobotEssay:40)
   setTimerModeUI(cfg.timerMode||'persoal')
 }
 
@@ -1290,6 +1382,10 @@ function saveConfig(){
   exam.cfg.anticheat=exam.cfg.acTab||exam.cfg.acCopy||exam.cfg.acRclick||exam.cfg.acDevtools||exam.cfg.acFullscreen
   exam.cfg.dq=g('cfg-dq');exam.cfg.toleransi=parseInt(g('cfg-toleransi'))||1
   exam.cfg.acak=g('cfg-acak');exam.cfg.acakOpsi=g('cfg-acak-opsi')
+  const opsiSel=document.getElementById('cfg-opsi-count')
+  exam.cfg.opsiCount=opsiSel?parseInt(opsiSel.value)||4:4
+  exam.cfg.bobotPilgan=parseInt(g('cfg-bobot-pilgan'))||60
+  exam.cfg.bobotEssay=parseInt(g('cfg-bobot-essay'))||40
   setStore(KEY_EXAMS,eArr);gasSync('saveExams',eArr);showToast('Pengaturan '+exam.nama+' disimpan.')
 }
 
@@ -1338,7 +1434,7 @@ function startExam(exam){
     s.opsi=s.opsi.map(v=>({v,s:Math.random()})).sort((a,b)=>a.s-b.s).map(x=>x.v)
     s.jawaban=s.opsi.indexOf(oTeks);return s
   })
-  examSoal=soalArr;currentSoalIdx=0;jawaban={};isDQ=false;cheatCount=0
+  examSoal=soalArr;examSoal._examCfg=cfg;currentSoalIdx=0;jawaban={};isDQ=false;cheatCount=0
   document.getElementById('exam-subject-title').textContent=exam.nama
   document.getElementById('exam-student-info').textContent=currentSantri.nama+' – '+currentSantri.kelas
   showScreen('screen-exam');renderSoalExam();updateProgressBar();renderQDots()
@@ -1355,6 +1451,10 @@ function renderSoalExam(){
   let html=`<div class="q-counter">Soal ${currentSoalIdx+1}/${examSoal.length} <span class="q-type-tag ${tipe}">${tipe==='essay'?'✏️ Essay':'📋 Pilgan'}</span></div>`
   if(cfg.timerMode==='persoal')html+=`<div class="q-timer-bar"><div class="q-timer-fill" id="q-timer-fill" style="width:100%"></div></div>`
   html+=`<div class="q-text">${currentSoalIdx+1}. ${escHtml(s.teks)}</div>`
+  // Ambil opsiCount dari exam cfg
+  const examNowCfg=examSoal._examCfg||{}
+  const opsiCountExam=parseInt(examNowCfg.opsiCount)||s.opsi?.length||4
+  const lettersExam=['A','B','C','D'].slice(0,opsiCountExam)
   if(tipe==='essay'){
     html+=`<div class="essay-answer-box">
       <div class="essay-answer-label">✏️ Tulis Jawaban Anda:</div>
@@ -1365,7 +1465,8 @@ function renderSoalExam(){
       <div class="essay-answer-hint">* Jawaban essay dinilai manual oleh guru</div>
     </div>`
   }else{
-    html+=`<div class="options-list">${s.opsi.map((o,oi)=>`<div class="option-item ${jawaban[currentSoalIdx]===oi?'selected':''}" onclick="pilihJawaban(${oi})"><div class="opt-letter">${letters[oi]}</div><div class="opt-text">${escHtml(o)}</div></div>`).join('')}</div>`
+    const opsiTampil=s.opsi.slice(0,opsiCountExam)
+    html+=`<div class="options-list">${opsiTampil.map((o,oi)=>`<div class="option-item ${jawaban[currentSoalIdx]===oi?'selected':''}" onclick="pilihJawaban(${oi})"><div class="opt-letter">${lettersExam[oi]||'?'}</div><div class="opt-text">${escHtml(o)}</div></div>`).join('')}</div>`
   }
   document.getElementById('exam-question-area').innerHTML=html
   document.getElementById('btn-prev').style.display=currentSoalIdx===0?'none':''
